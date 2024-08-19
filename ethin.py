@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+# from sklearn.pipeline import make_pipeline
 from tqdm import tqdm
 
 class BinaryLabeler:
@@ -162,4 +163,181 @@ class LogRegExperiment:
 # df = pd.read_csv('your_data.csv')  # Load your data
 # experiment = LogisticRegressionExperiment(df, ['feature1', 'feature2'], 'target')
 # probabilities = experiment.run_experiment()
+# print(probabilities)import pandas as pd
+
+class LogRegExperiment:
+    """
+    A class to perform logistic regression with elastic net regularization
+    and cross-validation.
+
+    Attributes
+    ----------
+    dataframe : pd.DataFrame
+        The input DataFrame containing features and target.
+    feature_columns : list
+        List of column names to be used as features.
+    target_column : str
+        The column name of the target variable.
+    best_model : sklearn estimator
+        The best logistic regression model found by GridSearchCV.
+    y_prob : np.ndarray
+        The probability scores for the positive class.
+
+    Methods
+    -------
+    run_experiment():
+        Performs logistic regression with elastic net regularization and
+        returns probability scores for classification results.
+    """
+
+    def __init__(self, dataframe: pd.DataFrame, feature_columns: list, target_column: str):
+        """
+        Parameters
+        ----------
+        dataframe : pd.DataFrame
+            The input DataFrame containing features and target.
+        feature_columns : list
+            List of column names to be used as features.
+        target_column : str
+            The column name of the target variable.
+        """
+        self.dataframe = dataframe
+        self.feature_columns = feature_columns
+        self.target_column = target_column
+        self.best_model = None
+        self.y_prob = None
+
+    def run_experiment(self):
+        """
+        Performs logistic regression with elastic net regularization and
+        returns probability scores for classification results.
+
+        Returns
+        -------
+        y_prob : np.ndarray
+            The probability scores for the positive class.
+        """
+        # Extract features and target
+        X = self.dataframe[self.feature_columns]
+        y = self.dataframe[self.target_column]
+
+        # Standardize features
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        # Split data into training and testing sets
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+        # Define the logistic regression model with elastic net regularization
+        model = LogisticRegression(penalty='elasticnet', solver='saga', max_iter=10000)
+
+        # Define the parameter grid for GridSearchCV
+        param_grid = {'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]}
+
+        # Initialize GridSearchCV with tqdm for progress tracking
+        grid_search = GridSearchCV(model, param_grid, cv=5, verbose=0, n_jobs=-1)
+
+        # Wrap the fit method with tqdm to show progress
+        # with tqdm(total=len(param_grid['l1_ratio']) * 5, desc="Grid Search Progress", unit="iteration") as pbar:
+        #     def update_bar(*args, **kwargs):
+        #         pbar.update(1)
+
+        # grid_search.fit(X_train, y_train, callback=update_bar)
+        grid_search.fit(X_train, y_train)
+
+        # Save the best model
+        self.best_model = grid_search.best_estimator_
+
+        # Predict probability scores FOR WHOLE DATAFRAME using the best model
+        self.y_prob = self.best_model.predict_proba(X_scaled)[:, 1]
+        print(X_scaled.shape)
+
+        # Print classification report
+        y_pred = self.best_model.predict(X_test)
+        print('Classification Report:')
+        print(classification_report(y_test, y_pred))
+
+# Example usage:
+# df = pd.read_csv('your_data.csv')  # Load your data
+# experiment = LogRegExperiment(df, ['feature1', 'feature2'], 'target')
+# probabilities = experiment.run_experiment()
 # print(probabilities)
+
+class TopEvaluator:
+    """
+    A class to evaluate and compare the top n values from two columns of a pandas DataFrame.
+
+    Attributes:
+    -----------
+    df : pd.DataFrame
+        The DataFrame containing the data.
+    column1 : str
+        The name of the first column to evaluate.
+    column2 : str
+        The name of the second column to evaluate.
+    n : int
+        The number of top values to select from each column.
+    compare_table : pd.DataFrame
+        A DataFrame comparing the top n values from both columns.
+    match_percentage : float
+        The percentage of top n values that match between the two columns.
+
+    Methods:
+    --------
+    evaluate():
+        Selects the top n values from the specified columns and calculates the match percentage.
+    """
+
+    def __init__(self, df, column1, column2, n):
+        """
+        Initializes the TopEvaluator with the DataFrame, column names, and number of top values.
+
+        Parameters:
+        -----------
+        df : pd.DataFrame
+            The DataFrame containing the data.
+        column1 : str
+            The name of the first column to evaluate.
+        column2 : str
+            The name of the second column to evaluate.
+        n : int
+            The number of top values to select from each column.
+        """
+        self.df = df
+        self.column1 = column1
+        self.column2 = column2
+        self.n = n
+        self.compare_table = pd.DataFrame()
+        self.match_percentage = 0.0
+
+    def evaluate(self):
+        """
+        Selects the top n values from the specified columns and calculates the match percentage.
+        """
+        # Select top n values from each column
+        top_n_col1 = self.df.nlargest(self.n, self.column1)
+        top_n_col2 = self.df.nlargest(self.n, self.column2)
+
+        # Combine the indices
+        combined_indices = top_n_col1.index.union(top_n_col2.index)
+
+        # Create a comparison table
+        self.compare_table = self.df.loc[combined_indices, [self.column1, self.column2]]
+
+        # Calculate match percentage
+        matches = top_n_col1.index.intersection(top_n_col2.index)
+        self.match_percentage = (len(matches) / self.n) * 100
+
+# Example usage:
+# data = {
+#     'Column1': [10, 20, 15, 30, 25],
+#     'Column2': [100, 200, 150, 300, 250]
+# }
+# df = pd.DataFrame(data)
+
+# evaluator = TopEvaluator(df, 'Column1', 'Column2', 3)
+# evaluator.evaluate()
+
+# print("Comparison Table:")
+# print(evaluator.compare_table)
+# print(f"Match Percentage: {evaluator.match_percentage}%")
