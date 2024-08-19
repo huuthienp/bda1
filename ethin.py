@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
+from matplotlib import pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 # from sklearn.pipeline import make_pipeline
-from tqdm import tqdm
+# from tqdm import tqdm
 
 class BinaryLabeler:
     """
@@ -95,99 +97,18 @@ class LogRegExperiment:
         List of column names to be used as features.
     target_column : str
         The column name of the target variable.
-
-    Methods
-    -------
-    run_experiment():
-        Performs logistic regression with elastic net regularization and
-        returns probability scores for classification results.
-    """
-
-    def __init__(self, dataframe: pd.DataFrame, feature_columns: list, target_column: str):
-        """
-        Parameters
-        ----------
-        dataframe : pd.DataFrame
-            The input DataFrame containing features and target.
-        feature_columns : list
-            List of column names to be used as features.
-        target_column : str
-            The column name of the target variable.
-        """
-        self.dataframe = dataframe
-        self.feature_columns = feature_columns
-        self.target_column = target_column
-
-    def run_experiment(self):
-        """
-        Performs logistic regression with elastic net regularization and
-        returns probability scores for classification results.
-
-        Returns
-        -------
-        y_prob : np.ndarray
-            The probability scores for the positive class.
-        """
-        # Extract features and target
-        X = self.dataframe[self.feature_columns]
-        y = self.dataframe[self.target_column]
-
-        # Standardize features
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-
-        # Split data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-
-        # Perform logistic regression with elastic net regularization
-        model = LogisticRegressionCV(
-            cv=5,
-            penalty='elasticnet',
-            solver='saga',
-            l1_ratios=[0.1, 0.5, 0.9],
-            max_iter=10000
-        )
-        model.fit(X_train, y_train)
-
-        # Predict probability scores
-        y_prob = model.predict_proba(X_test)[:, 1]
-
-        # Print classification report
-        y_pred = model.predict(X_test)
-        print('Classification Report:')
-        print(classification_report(y_test, y_pred))
-
-        return y_prob
-
-# Example usage:
-# df = pd.read_csv('your_data.csv')  # Load your data
-# experiment = LogisticRegressionExperiment(df, ['feature1', 'feature2'], 'target')
-# probabilities = experiment.run_experiment()
-# print(probabilities)import pandas as pd
-
-class LogRegExperiment:
-    """
-    A class to perform logistic regression with elastic net regularization
-    and cross-validation.
-
-    Attributes
-    ----------
-    dataframe : pd.DataFrame
-        The input DataFrame containing features and target.
-    feature_columns : list
-        List of column names to be used as features.
-    target_column : str
-        The column name of the target variable.
     best_model : sklearn estimator
         The best logistic regression model found by GridSearchCV.
-    y_prob : np.ndarray
-        The probability scores for the positive class.
 
     Methods
     -------
     run_experiment():
         Performs logistic regression with elastic net regularization and
         returns probability scores for classification results.
+    print_classification_report():
+        Prints the classification report for the test data.
+    print_confusion_matrix():
+        Prints and visualizes the confusion matrix for the test data.
     """
 
     def __init__(self, dataframe: pd.DataFrame, feature_columns: list, target_column: str):
@@ -204,18 +125,14 @@ class LogRegExperiment:
         self.dataframe = dataframe
         self.feature_columns = feature_columns
         self.target_column = target_column
+        self.X_test = None
+        self.y_test = None
         self.best_model = None
-        self.y_prob = None
 
     def run_experiment(self):
         """
         Performs logistic regression with elastic net regularization and
         returns probability scores for classification results.
-
-        Returns
-        -------
-        y_prob : np.ndarray
-            The probability scores for the positive class.
         """
         # Extract features and target
         X = self.dataframe[self.feature_columns]
@@ -226,7 +143,7 @@ class LogRegExperiment:
         X_scaled = scaler.fit_transform(X)
 
         # Split data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+        X_train, self.X_test, y_train, self.y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
         # Define the logistic regression model with elastic net regularization
         model = LogisticRegression(penalty='elasticnet', solver='saga', max_iter=10000)
@@ -248,20 +165,51 @@ class LogRegExperiment:
         # Save the best model
         self.best_model = grid_search.best_estimator_
 
-        # Predict probability scores FOR WHOLE DATAFRAME using the best model
-        self.y_prob = self.best_model.predict_proba(X_scaled)[:, 1]
-        print(X_scaled.shape)
+    def print_classification_report(self):
+        """
+        Prints the classification report for the test data.
+        """
+        if self.best_model is None:
+            raise ValueError("Model has not been trained. Please run the experiment first.")
 
-        # Print classification report
-        y_pred = self.best_model.predict(X_test)
+        # Predict the test data
+        y_pred = self.best_model.predict(self.X_test)
         print('Classification Report:')
-        print(classification_report(y_test, y_pred))
+        print(classification_report(self.y_test, y_pred))
+
+    def print_confusion_matrix(self):
+        """
+        Prints and visualizes the confusion matrix for the test data.
+        """
+        if self.best_model is None:
+            raise ValueError("Model has not been trained. Please run the experiment first.")
+
+        # Predict the test data
+        y_pred = self.best_model.predict(self.X_test)
+
+        # Calculate the confusion matrix
+        cm = confusion_matrix(self.y_test, y_pred)
+
+        # Plot the confusion matrix using Seaborn
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Predicted Negative', 'Predicted Positive'], yticklabels=['Actual Negative', 'Actual Positive'])
+        plt.xlabel('Predicted')
+        plt.ylabel('Actual')
+        plt.title('Confusion Matrix')
+        plt.show()
 
 # Example usage:
-# df = pd.read_csv('your_data.csv')  # Load your data
-# experiment = LogRegExperiment(df, ['feature1', 'feature2'], 'target')
-# probabilities = experiment.run_experiment()
-# print(probabilities)
+# data = {
+#     'Feature1': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+#     'Feature2': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+#     'Target': [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
+# }
+# df = pd.DataFrame(data)
+
+# experiment = LogisticRegressionExperiment(df, ['Feature1', 'Feature2'], 'Target')
+# experiment.run_experiment()
+# experiment.print_classification_report()
+# experiment.print_confusion_matrix()
 
 class TopEvaluator:
     """
