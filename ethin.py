@@ -97,6 +97,12 @@ class LogRegExperiment:
         List of column names to be used as features.
     target_column : str
         The column name of the target variable.
+    X_scaled : np.ndarray
+        Standardized feature data for training and testing.
+    X_test : np.ndarray
+        Feature data for testing the model.
+    y_test : np.ndarray
+        True labels for the test data.
     best_model : sklearn estimator
         The best logistic regression model found by GridSearchCV.
 
@@ -125,6 +131,7 @@ class LogRegExperiment:
         self.dataframe = dataframe
         self.feature_columns = feature_columns
         self.target_column = target_column
+        self.X_scaled = None
         self.X_test = None
         self.y_test = None
         self.best_model = None
@@ -140,10 +147,10 @@ class LogRegExperiment:
 
         # Standardize features
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        self.X_scaled = scaler.fit_transform(X)
 
         # Split data into training and testing sets
-        X_train, self.X_test, y_train, self.y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+        X_train, self.X_test, y_train, self.y_test = train_test_split(self.X_scaled, y, test_size=0.2, random_state=42)
 
         # Define the logistic regression model with elastic net regularization
         model = LogisticRegression(penalty='elasticnet', solver='saga', max_iter=10000)
@@ -270,7 +277,8 @@ class TopEvaluator:
         combined_indices = top_n_col1.index.union(top_n_col2.index)
 
         # Create a comparison table
-        self.compare_table = self.df.loc[combined_indices, [self.column1, self.column2]]
+        columns = [self.column1, self.column2]
+        self.compare_table = self.df.loc[combined_indices, columns].sort_values(by=columns, ascending=[False, False])
 
         # Calculate match percentage
         matches = top_n_col1.index.intersection(top_n_col2.index)
