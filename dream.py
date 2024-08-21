@@ -27,8 +27,8 @@ except ImportError:
     install('optuna')
     install('seaborn')
     install('scikit-learn')
-    install('pip')
-    install('plotly')
+    # install('pip')
+    # install('plotly')
 """Source code:
 
 1.   https://pandas.pydata.org/
