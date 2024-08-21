@@ -108,7 +108,7 @@ class LogRegExperiment:
 
     Methods
     -------
-    run_experiment():
+    train():
         Performs logistic regression with elastic net regularization and
         returns probability scores for classification results.
     print_classification_report():
@@ -117,7 +117,7 @@ class LogRegExperiment:
         Prints and visualizes the confusion matrix for the test data.
     """
 
-    def __init__(self, dataframe: pd.DataFrame, feature_columns: list, target_column: str):
+    def __init__(self, X, y, standard_scale=False):
         """
         Parameters
         ----------
@@ -128,32 +128,34 @@ class LogRegExperiment:
         target_column : str
             The column name of the target variable.
         """
-        self.dataframe = dataframe
-        self.feature_columns = feature_columns
-        self.target_column = target_column
+        self.X = X
+        self.y = y
+        self.standard_scale = standard_scale
         self.X_scaled = None
         self.X_test = None
         self.y_test = None
         self.best_model = None
 
-    def run_experiment(self):
+    def train(self):
         """
         Performs logistic regression with elastic net regularization and
         returns probability scores for classification results.
         """
         # Extract features and target
-        X = self.dataframe[self.feature_columns]
-        y = self.dataframe[self.target_column]
+        X = self.X
+        y = self.y
 
-        # Standardize features
-        scaler = StandardScaler()
-        self.X_scaled = scaler.fit_transform(X)
+        if self.standard_scale:
+            # Standardize features
+            scaler = StandardScaler()
+            self.X_scaled = scaler.fit_transform(X)
+            X = self.X_scaled
 
         # Split data into training and testing sets
-        X_train, self.X_test, y_train, self.y_test = train_test_split(self.X_scaled, y, test_size=0.2, random_state=42)
+        X_train, self.X_test, y_train, self.y_test = train_test_split(X, y, test_size=0.33, random_state=42, stratify=y)
 
         # Define the logistic regression model with elastic net regularization
-        model = LogisticRegression(penalty='elasticnet', solver='saga', max_iter=10000)
+        model = LogisticRegression(penalty='elasticnet', solver='saga', max_iter=5000)
 
         # Define the parameter grid for GridSearchCV
         param_grid = {'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]}
@@ -202,7 +204,7 @@ class LogRegExperiment:
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Predicted Negative', 'Predicted Positive'], yticklabels=['Actual Negative', 'Actual Positive'])
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
-        plt.title('Confusion Matrix')
+        plt.title('Logistic Regression Confusion Matrix')
         plt.show()
 
 # Example usage:
@@ -214,11 +216,11 @@ class LogRegExperiment:
 # df = pd.DataFrame(data)
 
 # experiment = LogisticRegressionExperiment(df, ['Feature1', 'Feature2'], 'Target')
-# experiment.run_experiment()
+# experiment.train()
 # experiment.print_classification_report()
 # experiment.print_confusion_matrix()
 
-class TopEvaluator:
+class LargestValueEvaluator:
     """
     A class to evaluate and compare the top n values from two columns of a pandas DataFrame.
 
@@ -245,7 +247,7 @@ class TopEvaluator:
 
     def __init__(self, df, column1, column2, n):
         """
-        Initializes the TopEvaluator with the DataFrame, column names, and number of top values.
+        Initializes the LargestValueEvaluator with the DataFrame, column names, and number of top values.
 
         Parameters:
         -----------
@@ -278,7 +280,9 @@ class TopEvaluator:
 
         # Create a comparison table
         columns = [self.column1, self.column2]
-        self.compare_table = self.df.loc[combined_indices, columns].sort_values(by=columns, ascending=[False, False])
+        self.compare_table = pd.concat([self.df.loc[top_n_col1.index, columns], \
+                                        self.df.loc[top_n_col2.index, columns]])
+        self.compare_table['Matched'] = self.compare_table.duplicated(keep=False)
 
         # Calculate match percentage
         matches = top_n_col1.index.intersection(top_n_col2.index)
@@ -291,9 +295,9 @@ class TopEvaluator:
 # }
 # df = pd.DataFrame(data)
 
-# evaluator = TopEvaluator(df, 'Column1', 'Column2', 3)
+# evaluator = LargestValueEvaluator(df, 'Column1', 'Column2', 3)
 # evaluator.evaluate()
 
 # print("Comparison Table:")
 # print(evaluator.compare_table)
-# print(f"Match Percentage: {evaluator.match_percentage}%")
+# print(frMatch Percentage: {evaluator.match_percentage}%')
