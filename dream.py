@@ -56,104 +56,96 @@ class DataVisualisation:
     plt.title('Box Plot to see outliers')
     plt.show()
  
-class ClusteringAnalysis:
+class ClusteringModelsExperiment:
     def __init__(self, data):
         self.data = data
 
-    def plot_elbow_method(self, max_clusters=10):
+    def k_mean(self, params):
         inertia = []
-        for k in range(1, max_clusters + 1):
+        for k in range(1, 11):
             kmeans = KMeans(n_clusters=k)
-            kmeans.fit(self.data)
+            kmeans.fit(self.reduced_data)
             inertia.append(kmeans.inertia_)
-        plt.plot(range(1, max_clusters + 1), inertia, marker='o')
-        plt.title('Elbow Method for cleaned data')
+
+        plt.plot(range(1, 11), inertia, marker='o')
+        plt.title(f'Elbow Method for cleaned data')
         plt.xlabel('Number of clusters')
         plt.ylabel('Inertia')
         plt.show()
 
-    def plot_silhouette_analysis(self, min_clusters=2, max_clusters=10):
         silhouette_scores = []
-        for k in range(min_clusters, max_clusters):
+        for k in range(2, 10):  
             kmeans = KMeans(n_clusters=k)
-            labels = kmeans.fit_predict(self.data)
-            silhouette_scores.append(silhouette_score(self.data, labels))
-        plt.plot(range(min_clusters, max_clusters), silhouette_scores, marker='o')
+            labels = kmeans.fit_predict(self.reduced_data)
+            silhouette_scores.append(silhouette_score(self.reduced_data, labels))
+
+        plt.plot(range(2, 10), silhouette_scores, marker='o')
         plt.title('Silhouette Analysis')
         plt.xlabel('Number of clusters')
         plt.ylabel('Silhouette Score')
         plt.show()
-        print(f'The highest Silhouette score is {max(silhouette_scores)}')
+        print(f'The highest Silhouette score of KMeans is {max(silhouette_scores)}')
 
-    def kmean_clustering(self, params):
         kmeans = KMeans().set_params(**params)
-        kmeans.fit(self.data)
+        kmeans.fit(self.reduced_data)
+        labels = kmeans.labels_
+
+        plt.scatter(self.reduced_data[:, 0], self.reduced_data[:, 1], c=labels, cmap='viridis', s=50)
         centers = kmeans.cluster_centers_
-        # self.plot_clusters_with_plotly(self.data, kmeans.labels_, title='KMeans Clustering with Plotly')
-        plt.scatter(self.data[:, 0], self.data[:, 1], c=kmeans.labels_, cmap='viridis', s=50)
         plt.scatter(centers[:, 0], centers[:, 1], c='red', s=200, alpha=0.75, marker='X')
         plt.title('2D PCA of Data with KMeans Clustering')
         plt.xlabel('PCA Component 1')
         plt.ylabel('PCA Component 2')
         plt.show()
 
-    def gaussian_model_clustering(self, params):
+    def gaussian_model(self, params):
         gaussian_model = GaussianMixture().set_params(**params)
-        gaussian_model.fit(self.data)
-        labels = gaussian_model.predict(self.data)
-        # self.plot_clusters_with_plotly(self.data, labels, title='Gaussian Mixture Clustering with Plotly')
-        for cluster in np.unique(labels):
-            index = np.where(labels == cluster)
-            plt.scatter(self.data[index, 0], self.data[index, 1])
+        gaussian_model.fit(self.reduced_data)
+        label = gaussian_model.predict(self.reduced_data)
+        gaussian_clusters = np.unique(label)
+
+        for gaussian_cluster in gaussian_clusters:
+            index = np.where(label == gaussian_cluster)
+            plt.scatter(self.reduced_data[index, 0], self.reduced_data[index, 1])
+
         plt.title('Gaussian Model Clustering')
         plt.show()
 
-    def plot_gaussian_silhouette_analysis(self, min_clusters=2, max_clusters=7):
         silhouette_scores = []
-        for k in range(min_clusters, max_clusters):
+        for k in range(2, 7):  
             gaussian = GaussianMixture(n_components=k, init_params='kmeans')
-            labels = gaussian.fit_predict(self.data)
-            silhouette_scores.append(silhouette_score(self.data, labels))
-        plt.plot(range(min_clusters, max_clusters), silhouette_scores, marker='o')
+            labels = gaussian.fit_predict(self.reduced_data)
+            silhouette_scores.append(silhouette_score(self.reduced_data, labels))
+
+        plt.plot(range(2, 7), silhouette_scores, marker='o')
         plt.title('Silhouette Analysis for Gaussian Mixture Model')
         plt.xlabel('Number of clusters')
         plt.ylabel('Silhouette Score')
         plt.show()
         print(f'The highest Silhouette score of Gaussian Mixture Model is {max(silhouette_scores)}')
-        print(f'The lowest BIC of Gaussian Mixture Model is {min(silhouette_scores)}')
 
-    def plot_bic_aic(self, max_components=20):
-        n_components = np.arange(1, max_components + 1)
-        models = [GaussianMixture(n, covariance_type='full', random_state=0).fit(self.data) for n in n_components]
-        plt.plot(n_components, [model.bic(self.data) for model in models], label='BIC')
-        plt.plot(n_components, [model.aic(self.data) for model in models], label='AIC')
-        plt.legend(loc='best')
-        plt.xlabel('n_components')
+        bic_values = []
+        component_range = np.arange(1, 11, 1)
+        for n in component_range:
+            gmm = GaussianMixture(n_components=n)
+            gmm.fit(self.reduced_data)
+            bic_values.append(gmm.bic(self.reduced_data))
+ 
+        print(f'The lowest BIC of Gaussian Mixture Model is {min(silhouette_scores)}')
+        plt.plot(component_range, bic_values, label='BIC')
+        plt.xlabel('Number of Components')
+        plt.ylabel('BIC Value')
+        plt.title('BIC for Gaussian Mixture Model')
+        plt.legend()
         plt.show()
 
-    @staticmethod
-    def plot_clusters_with_plotly(data, labels, title="Clustering Results"):
-        # Convert the data to a DataFrame for easier handling with Plotly
-        df = pd.DataFrame(data, columns=['PC1', 'PC2'])
-        df['Cluster'] = labels
-    
-        # Create an interactive scatter plot
-        fig = px.scatter(df, x='PC1', y='PC2', color='Cluster', title=title,
-                         labels={'PC1': 'Principal Component 1', 'PC2': 'Principal Component 2'},
-                         color_continuous_scale=px.colors.sequential.Viridis)
-    
-        # Display the plot
-        fig.show()
-
     def select_clustering_model(self, choice, params):
-        choice = choice.lower()
         if 'kmean' in choice:
-            self.kmean_clustering(params)
+            return self.k_mean(params)
         elif 'gaussian' in choice:
-            self.gaussian_model_clustering(params)
+            return self.gaussian_model(params)
         else:
             print("Please type the name of the model you're interested in correctly as above")
-    
 
 """
 Hyperparameter Tuning 
@@ -167,11 +159,11 @@ from sklearn.metrics import silhouette_score
 class HyperparameterTuning:
     def __init__(self, data, choice):
         self.data = data
-        self.choice = choice.lower()
+        self.choice = choice
 
     def objective(self, trial):
         try:
-            if self.choice == 'kmean':
+            if 'kmean' in self.choice:
                 kmeans = KMeans()
                 kmeans_params = {
                     "n_clusters": trial.suggest_int(name="n_clusters", low=2, high=11),
@@ -182,7 +174,7 @@ class HyperparameterTuning:
                 kmeans_score = silhouette_score(self.data, kmeans.labels_)
                 return kmeans_score
 
-            elif self.choice == 'gaussian mixture':
+            elif 'gaussian' in self.choice:
                 gaussian = GaussianMixture(covariance_type="full")
                 gaussian_params = {
                     "n_components": trial.suggest_int(name="n_components", low=2, high=11),
@@ -197,13 +189,16 @@ class HyperparameterTuning:
             print(f"An error occurred: {e}")
             return float('inf')
 
-    def run_study(self, n_trials=5):
-        study = optuna.create_study(direction="minimize")
-        study.optimize(self.objective, n_trials=n_trials)
+    def run_study(self, n_trials=25):
+        if 'kmean' in self.choice:
+            study = optuna.create_study(direction="maximize")
+            study.optimize(self.objective, n_trials=n_trials)
+        elif 'gaussian' in self.choice:
+            study = optuna.create_study(direction="minimize")
+            study.optimize(self.objective, n_trials=n_trials)
         return study
 
-    @staticmethod
-    def visualize_study(study):
+    def visualize_study(self, study):
         # Plot the optimization history
         optuna.visualization.plot_optimization_history(study).show()
         # Plot the slice plot to see parameter interactions

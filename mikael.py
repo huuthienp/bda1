@@ -18,18 +18,19 @@ class RandomForestExperiment:
         RF_model_tuned = RandomForestClassifier(random_state=42, **params_RF, n_estimators = 500)
         return RF_model_tuned.fit(X_train, y_train)
 
-    def plot_confusion_matrix(self, y_test: np.array, RF_predictions: np.array) -> None:
+    def plot_confusion_matrix(self, y_test: np.array, RF_predictions: np.array, save=False) -> None:
         # Calculate confusion matrix
-        cm = confusion_matrix(y_test, RF_predictions)
+        confusion_matrix_df = pd.DataFrame(data=confusion_matrix(y_test, RF_predictions), 
+                                       index=["True Good", "True Bad"], 
+                                       columns=["Predicted Good", "Predicted Bad"])
     
         # Plot confusion matrix
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Predicted Negative', 'Predicted Positive'], yticklabels=['Actual Negative', 'Actual Positive'])
-        plt.xlabel('Predicted')
-        plt.ylabel('Actual')
-        plt.title('Random Forest Confusion Matrix')
+        fig = plt.figure()
+        sns.heatmap(confusion_matrix_df, annot=True)
         plt.show()
-
+        if save:
+            plt.savefig('ConfusionMatrix_RandomForest.png')
+ 
     def display_accuracy_on_testset(self, y_test: np.array, RF_predictions: np.array):
         accuracy = accuracy_score(y_test, RF_predictions)
         print(f"The accuracy of hyperparamater tuned is: {accuracy}")

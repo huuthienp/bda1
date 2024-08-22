@@ -72,7 +72,7 @@ class BinaryLabeler:
             A Series of binary labels (0 and 1).
         """
         threshold_value = self.get_threshold()
-        labels = (self.dataframe[self.metric] >= threshold_value).astype(int)
+        labels = (self.dataframe[self.metric] > threshold_value).astype(int)
         return labels
 
 
@@ -186,7 +186,7 @@ class LogRegExperiment:
         print('Classification Report:')
         print(classification_report(self.y_test, y_pred))
 
-    def print_confusion_matrix(self):
+    def print_confusion_matrix(self, save=False):
         """
         Prints and visualizes the confusion matrix for the test data.
         """
@@ -205,6 +205,7 @@ class LogRegExperiment:
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
         plt.title('Logistic Regression Confusion Matrix')
+        plt.savefig('ConfusionMatrix_LogReg.png')
         plt.show()
 
 # Example usage:
