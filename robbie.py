@@ -49,10 +49,10 @@
 
 import pandas as pd
 import numpy as np
-import seaborn as sns
+# import seaborn as sns
 import zipfile as zp
 import os
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
 # """## **Helper Class**"""
@@ -234,39 +234,34 @@ class DataReader:
 from sklearn.model_selection import train_test_split
 
 class DataPreProcesser:
-    def __init__(self, df_before, index_label='', std_suffix='_std'):
-        self.df_before = df_before
-        self.df_after = df_before.copy()
-        self.index_label = index_label
-        self.std_suffix = std_suffix
+  def __init__(self, df):
+    self.df = df
+    self.preprocess_all()
 
-    def drop_duplicates_set_index(self):
-        # Create a copy without duplicates, keeping the first occurrences
-        dup_row_mask = self.df_after.duplicated()
-        n_dup_rows = dup_row_mask.sum()
-        self.df_after = self.df_after[~dup_row_mask]
-        print(f'Removed {n_dup_rows} duplicated rows')
-        try:
-            dup_id_mask = self.df_after[self.index_label].duplicated(keep=False)
-            n_dup_id = dup_id_mask.sum()
-            self.df_after = self.df_after[~dup_id_mask]
-            print(f'Removed {n_dup_id} rows with duplicated `{self.index_label}` values')
-            self.df_after.set_index(self.index_label, inplace=True)
-            print(f'Used column `{self.index_label}` as index')
-        except KeyError:
-            print(f'Could not set index: column `{self.index_label}` not found')
 
-    def keep_only_numeric_columns(self, standard_scale=False, keep_non_standard=False, and_columns=[]):
-        numeric_df = self.df_after.select_dtypes(include=[np.number])
-        if standard_scale:
-            scaler = StandardScaler()
-            standard_data = scaler.fit_transform(numeric_df)
-            standard_df = pd.DataFrame(standard_data, columns=numeric_df.columns, index=numeric_df.index)
-        if keep_non_standard:
-            and_columns.extend(numeric_df.columns.tolist())
-        if len(and_columns) > 0:
-            self.df_after = self.df_after[and_columns].join(standard_df, lsuffix='', rsuffix=self.std_suffix)
+  def preprocess_all(self):
+    self.keep_numeric_cols()
+    self.df = self.stdsclar()
 
+  def keep_numeric_cols(self):
+    columns_to_keep = [col for col in self.df.columns if self.df[col].dtype in ['float64', 'int64']]
+    self.df = self.df[columns_to_keep]
+    self.df  = self.df.drop("id", axis=1)
+
+  def stdsclar(self):
+    scaler = StandardScaler()
+    discount_tmp = scaler.fit_transform(self.df[['discount']])
+    likes_tmp = scaler.fit_transform(np.log1p(self.df[['likes_count']]))
+    metric = discount_tmp+likes_tmp
+
+    df_sclr = scaler.fit_transform(self.df)  # Ensure only numeric columns are scaled
+    df_sclr = pd.DataFrame(df_sclr, columns=self.df.columns)
+    df_sclr['metric'] = metric.ravel()
+    df_sclr['target'] = np.where(df_sclr['metric']>2, 1, 0)
+    df_sclr = df_sclr.drop("metric", axis=1)
+
+    return df_sclr
+      
 # dpp = DataPreProcesser(combined_df)
 # df_pp = dpp.df
 # df_pp
@@ -301,8 +296,8 @@ class DataPreProcesser:
 # * We could use: DBSCAN, SOM or Etc
 # """
 
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
+# from sklearn.decomposition import PCA
+# from sklearn.cluster import KMeans
 
 # df_clustering = df_pp.drop("target",axis=1)
 # df_clustering
@@ -334,8 +329,8 @@ from sklearn.cluster import KMeans
 # ## Basic Example of classifcation (Guidance if you are new to ML)
 # """
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, f1_score
+# from sklearn.linear_model import LogisticRegression
+# from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, f1_score
 
 # # Data
 # # X_train, X_test, y_train, y_test
