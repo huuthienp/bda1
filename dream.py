@@ -142,7 +142,7 @@ class KMeansGaussianExperiment:
             "bic_values": bic_values
         }
 
-    def select_clustering_model(self, choice, params):
+    def perform_clustering(self, choice, params):
         if 'kmean' in choice:
             return self.k_mean(params)
         elif 'gaussian' in choice:
@@ -223,6 +223,8 @@ if __name__ == '__main__':
     # Model Selection
     print('There are KMean, Gaussian Mixture available')
     choice = input('Which clustering model you want to try? ').lower()
+    while 'kmean' not in choice and 'gaussian' not in choice:
+        choice = input('Which clustering model you want to try? ').lower()
 
     # Create an instance of the KMeansGaussianExperiment class
     kge = KMeansGaussianExperiment(reduced_data)
@@ -230,7 +232,7 @@ if __name__ == '__main__':
     tuner, study_silh = kge.tune_hyperparameter(choice, n_trials=25) # 25-30 minutes
     print(f"Best parameters: {study_silh.best_trial.params}")
     print(f"Best value: {study_silh.best_trial.value}")
-    tuner.visualize_study(study)
+    tuner.visualize_study(study_silh)
 
     # Select and run the chosen model
     observed = kge.perform_clustering(choice, study_silh.best_trial.params)
