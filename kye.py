@@ -88,26 +88,24 @@ if __name__ == '__main__':
     # define path variables
     zip_file_dir = "A1_2024_Released.zip"
     csv_dir = "A1_2024_Unzip"
-    
+
     # obtain the data
     data_reader = DataReader(zip_file_dir, csv_dir)
     combined_df = data_reader.combined_df
     dpp = DataPreProcesser(combined_df)
     df_pp = dpp.df
-    # combined_df = pd.DataFrame()  # Replace with actual DataFrame
-    # df_pp = pd.DataFrame()        # Replace with actual DataFrame
 
     # Preprocess the data
     df_db, categories_filtered, category_names = prepare_data_dbscan(combined_df, df_pp)
     print(df_db)
 
     # Perform clustering and plot
-    DSCE = DBSCANExperiment(df_db, categories_filtered, category_names)
-    DSCE.perform_clustering()
+    dsce = DBSCANExperiment(df_db, categories_filtered, category_names)
+    dsce.perform_clustering()
     print(df_db)
-    DSCE.plot_clusters()  # Set custom_view to True for specific view angle
-    DSCE.plot_clusters(custom_view=True)  # Set custom_view to True for specific view angle
-    DSCE.plot_detailed_clusters()  # Plot with detailed category markers
+    dsce.plot_clusters()  # Set custom_view to True for specific view angle
+    dsce.plot_clusters(custom_view=True)  # Set custom_view to True for specific view angle
+    dsce.plot_detailed_clusters()  # Plot with detailed category markers
 
 # # Convert categories to numerical values
 # le = LabelEncoder()

@@ -189,12 +189,8 @@ class HyperparameterTuner:
             return float('inf')
 
     def run_study(self, n_trials=25):
-        if 'kmean' in self.choice:
-            study = optuna.create_study(direction="maximize")
-            study.optimize(self.objective, n_trials=n_trials)
-        elif 'gaussian' in self.choice:
-            study = optuna.create_study(direction="maximize")
-            study.optimize(self.objective, n_trials=n_trials)
+        study = optuna.create_study(direction="maximize")
+        study.optimize(self.objective, n_trials=n_trials)
         return study
 
     def visualize_study(self, study):

@@ -73,11 +73,11 @@ class DataReader:
 
   def combine_csv(self):
     df_list = []
-    dir = os.path.join(self.csv_dir, "A1_2024_Released")
-    list_dir = os.listdir(dir)
+    wdir = os.path.join(self.csv_dir, "A1_2024_Released")
+    list_dir = os.listdir(wdir)
     list_dir_csv = [filename for filename in list_dir if filename.endswith('.csv')]
     for filename in list_dir_csv:
-      file_path = os.path.join(dir, filename)
+      file_path = os.path.join(wdir, filename)
       df = pd.read_csv(file_path)
       df_list.append(df)
 

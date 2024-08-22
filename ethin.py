@@ -108,7 +108,7 @@ class LogRegExperiment:
 
     Methods
     -------
-    train():
+    split_and_fit():
         Performs logistic regression with elastic net regularization and
         returns probability scores for classification results.
     print_classification_report():
@@ -136,7 +136,7 @@ class LogRegExperiment:
         self.y_test = None
         self.best_model = None
 
-    def train(self):
+    def split_and_fit(self):
         """
         Performs logistic regression with elastic net regularization and
         returns probability scores for classification results.
@@ -155,10 +155,17 @@ class LogRegExperiment:
         X_train, self.X_test, y_train, self.y_test = train_test_split(X, y, test_size=0.33, random_state=42, stratify=y)
 
         # Define the logistic regression model with elastic net regularization
-        model = LogisticRegression(penalty='elasticnet', solver='saga', max_iter=5000)
+        model = LogisticRegression(penalty='elasticnet',
+                                   solver='saga',
+                                   # class_weight='balanced',
+                                   max_iter=1000,
+                                   random_state=42)
 
         # Define the parameter grid for GridSearchCV
-        param_grid = {'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]}
+        param_grid = {
+            'l1_ratio': [0.05, 0.1, 0.15],
+            'C': [1.25, 1.5, 1.75],
+        }
 
         # Initialize GridSearchCV with tqdm for progress tracking
         grid_search = GridSearchCV(model, param_grid, cv=5, verbose=0, n_jobs=-1)
@@ -186,41 +193,6 @@ class LogRegExperiment:
         print('Classification Report:')
         print(classification_report(self.y_test, y_pred))
 
-    def print_confusion_matrix(self, save=False):
-        """
-        Prints and visualizes the confusion matrix for the test data.
-        """
-        if self.best_model is None:
-            raise ValueError("Model has not been trained. Please run the experiment first.")
-
-        # Predict the test data
-        y_pred = self.best_model.predict(self.X_test)
-
-        # Calculate the confusion matrix
-        cm = confusion_matrix(self.y_test, y_pred)
-
-        # Plot the confusion matrix using Seaborn
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Predicted Negative', 'Predicted Positive'], yticklabels=['Actual Negative', 'Actual Positive'])
-        plt.xlabel('Predicted')
-        plt.ylabel('Actual')
-        plt.title('Logistic Regression Confusion Matrix')
-        plt.savefig('ConfusionMatrix_LogReg.png')
-        plt.show()
-
-# Example usage:
-# data = {
-#     'Feature1': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-#     'Feature2': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-#     'Target': [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
-# }
-# df = pd.DataFrame(data)
-
-# experiment = LogisticRegressionExperiment(df, ['Feature1', 'Feature2'], 'Target')
-# experiment.train()
-# experiment.print_classification_report()
-# experiment.print_confusion_matrix()
-
 class LargestValueEvaluator:
     """
     A class to evaluate and compare the top n values from two columns of a pandas DataFrame.
@@ -247,20 +219,6 @@ class LargestValueEvaluator:
     """
 
     def __init__(self, df, column1, column2, n):
-        """
-        Initializes the LargestValueEvaluator with the DataFrame, column names, and number of top values.
-
-        Parameters:
-        -----------
-        df : pd.DataFrame
-            The DataFrame containing the data.
-        column1 : str
-            The name of the first column to evaluate.
-        column2 : str
-            The name of the second column to evaluate.
-        n : int
-            The number of top values to select from each column.
-        """
         self.df = df
         self.column1 = column1
         self.column2 = column2
@@ -269,9 +227,6 @@ class LargestValueEvaluator:
         self.match_percentage = 0.0
 
     def evaluate(self):
-        """
-        Selects the top n values from the specified columns and calculates the match percentage.
-        """
         # Select top n values from each column
         top_n_col1 = self.df.nlargest(self.n, self.column1)
         top_n_col2 = self.df.nlargest(self.n, self.column2)
@@ -289,16 +244,37 @@ class LargestValueEvaluator:
         matches = top_n_col1.index.intersection(top_n_col2.index)
         self.match_percentage = (len(matches) / self.n) * 100
 
-# Example usage:
-# data = {
-#     'Column1': [10, 20, 15, 30, 25],
-#     'Column2': [100, 200, 150, 300, 250]
-# }
-# df = pd.DataFrame(data)
+if __name__ == '__main__':
+    CATEGORIES = ['shoes', 'women', 'house', 'men', 'accessories', 'bags', 'jewelry', 'kids', 'beauty']
+    COUNT = 10
+    from robbie import DataReader, DataPreProcesser
+    from mikael import ClassificationEvaluator
+    # define path variables
+    zip_file_dir = "A1_2024_Released.zip"
+    csv_dir = "A1_2024_Unzip"
 
-# evaluator = LargestValueEvaluator(df, 'Column1', 'Column2', 3)
-# evaluator.evaluate()
+    # obtain the data
+    data_reader = DataReader(zip_file_dir, csv_dir)
+    combined_df = data_reader.combined_df
+    dpp = DataPreProcesser(combined_df)
+    df_pp = dpp.df
 
-# print("Comparison Table:")
-# print(evaluator.compare_table)
-# print(frMatch Percentage: {evaluator.match_percentage}%')
+    df_cat = df_pp.copy()
+    cat_col = combined_df["category"] 
+    df_cat["category"] = cat_col
+
+    lre = LogRegExperiment(df_pp.drop(columns='target'),
+                           df_pp['target'].values)
+    lre.split_and_fit()
+    lr_model = lre.best_model
+    print(lr_model)
+
+    lr_y_pred = lr_model.predict(lre.X_test)
+    lr_eval = ClassificationEvaluator(lr_model, lre.y_test, lr_y_pred)
+    lr_eval.display_report()
+
+    df_cat_proba = df_cat.drop(columns='target')
+    lr_top_prod_proba_per_cat = lr_eval.get_top_produ_per_cat(df_cat_proba, cat_col, CATEGORIES, COUNT)
+    lr_best_cat_df = lr_eval.get_cat_ratios(df_cat_proba, cat_col, CATEGORIES)
+
+    lr_eval.plot_confusion_matrix()
