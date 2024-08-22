@@ -153,8 +153,7 @@ class KMeansGaussianExperiment:
     def tune_hyperparameter(self, choice, n_trials=25):
         tuner = HyperparameterTuner(self.data, choice)
         study = tuner.run_study(n_trials)
-        tuner.visualize_study(study)
-        return study
+        return tuner, study
 
 class HyperparameterTuner:
     def __init__(self, data, choice):
