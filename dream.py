@@ -18,7 +18,7 @@ try:
     import zipfile as zp
     import sklearn
     import optuna
-    # import plotly
+    # import plotly.express as px
 except ImportError:
     print("Some packages are required to be installed")
     print("Installing expected packages")
@@ -27,7 +27,7 @@ except ImportError:
     install('optuna')
     install('seaborn')
     install('scikit-learn')
-    # install('pip')
+    install('pip')
     # install('plotly')
 """Source code:
 
@@ -88,9 +88,9 @@ class ClusteringAnalysis:
     def kmean_clustering(self, params):
         kmeans = KMeans().set_params(**params)
         kmeans.fit(self.data)
-        labels = kmeans.labels_
         centers = kmeans.cluster_centers_
-        plt.scatter(self.data[:, 0], self.data[:, 1], c=labels, cmap='viridis', s=50)
+        # self.plot_clusters_with_plotly(self.data, kmeans.labels_, title='KMeans Clustering with Plotly')
+        plt.scatter(self.data[:, 0], self.data[:, 1], c=kmeans.labels_, cmap='viridis', s=50)
         plt.scatter(centers[:, 0], centers[:, 1], c='red', s=200, alpha=0.75, marker='X')
         plt.title('2D PCA of Data with KMeans Clustering')
         plt.xlabel('PCA Component 1')
@@ -101,9 +101,9 @@ class ClusteringAnalysis:
         gaussian_model = GaussianMixture().set_params(**params)
         gaussian_model.fit(self.data)
         labels = gaussian_model.predict(self.data)
-        gaussian_clusters = unique(labels)
-        for cluster in gaussian_clusters:
-            index = where(labels == cluster)
+        # self.plot_clusters_with_plotly(self.data, labels, title='Gaussian Mixture Clustering with Plotly')
+        for cluster in np.unique(labels):
+            index = np.where(labels == cluster)
             plt.scatter(self.data[index, 0], self.data[index, 1])
         plt.title('Gaussian Model Clustering')
         plt.show()
@@ -131,11 +131,25 @@ class ClusteringAnalysis:
         plt.xlabel('n_components')
         plt.show()
 
+    @staticmethod
+    def plot_clusters_with_plotly(data, labels, title="Clustering Results"):
+        # Convert the data to a DataFrame for easier handling with Plotly
+        df = pd.DataFrame(data, columns=['PC1', 'PC2'])
+        df['Cluster'] = labels
+    
+        # Create an interactive scatter plot
+        fig = px.scatter(df, x='PC1', y='PC2', color='Cluster', title=title,
+                         labels={'PC1': 'Principal Component 1', 'PC2': 'Principal Component 2'},
+                         color_continuous_scale=px.colors.sequential.Viridis)
+    
+        # Display the plot
+        fig.show()
+
     def select_clustering_model(self, choice, params):
         choice = choice.lower()
-        if choice == 'kmean':
+        if 'kmean' in choice:
             self.kmean_clustering(params)
-        elif choice == 'gaussian mixture':
+        elif 'gaussian' in choice:
             self.gaussian_model_clustering(params)
         else:
             print("Please type the name of the model you're interested in correctly as above")
@@ -179,12 +193,12 @@ class HyperparameterTuning:
                 gmm_score = silhouette_score(self.data, gaussian.predict(self.data))
                 return gmm_score
 
-        except ImportError as e:
+        except Exception as e:
             print(f"An error occurred: {e}")
             return float('inf')
 
     def run_study(self, n_trials=5):
-        study = optuna.create_study(direction="maximize")
+        study = optuna.create_study(direction="minimize")
         study.optimize(self.objective, n_trials=n_trials)
         return study
 
