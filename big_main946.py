@@ -1,4 +1,3 @@
-#!~/usr/bin/env python3
 import subprocess
 import sys
 
@@ -382,7 +381,7 @@ import matplotlib.pylab as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import recall_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, f1_score, recall_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
 
 def add_category_information(df_pp: pd.DataFrame, combined_df: pd.DataFrame) -> pd.DataFrame:
     "Raw data is just the dataset with column with category information, need to add category information to preprocessed data"
@@ -429,11 +428,15 @@ class ClassificationEvaluator:
         print('Classification Report:')
         print(classification_report(self.y_test, self.y_pred))
         recall = recall_score(self.y_test, self.y_pred)
-        print(f"The recall of {self.model.__class__.__name__} is: {recall:.2f}")
+        accuracy = accuracy_score(self.y_test, self.y_pred)
+        f1 = f1_score(self.y_test, self.y_pred, average='binary')
+        print(f"The recall of {self.model.__class__.__name__} is: {recall:.9f}")
+        print(f"The accuracy of {self.model.__class__.__name__} is: {accuracy:.9f}")
+        print(f"The f1 score of {self.model.__class__.__name__} is: {f1:.9f}")
         print()
 
     def get_top_produ_per_cat(self, df_cat, category_column, categories, count) -> dict:
-        top_produ = {}
+        top_percat_produ = {}
         for cat in categories:
             # Filter data for the current category
             filtered_data = df_cat[category_column == cat]
@@ -442,8 +445,14 @@ class ClassificationEvaluator:
             # Convert probabilities to DataFrame
             proba_df = pd.DataFrame(proba_data, columns=['Class_0', 'Class_1'], index=filtered_data.index)
             top_idx = proba_df['Class_1'].nlargest(count).index
-            top_produ[cat] = proba_df.loc[top_idx]
-        return top_produ
+            top_percat_produ[cat] = proba_df.loc[top_idx]
+        return top_percat_produ
+
+    def get_top_produ(self, df_pp, count):
+        proba_data = self.model.predict_proba(df_pp.drop(columns='target'))
+        proba_df = pd.DataFrame(proba_data, columns=['Class_0', 'Class_1'], index=df_pp.index)
+        top_produ_df = proba_df['Class_1'].nlargest(count)
+        return top_produ_df
 
     def get_cat_ratios(self, df_cat, category_column, categories):
         predictions = {}
@@ -476,6 +485,19 @@ class ClassificationEvaluator:
         best_category = df.loc[df['Ratio'].idxmax()]['Category']
         print(f"Best category: {best_category}")
         return df
+
+    def visualize_best_category(self, prod_df: pd.DataFrame) -> None:
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x='Category', y='Ratio', data=prod_df, palette='Blues_d')
+    
+        # Add titles and labels
+        plt.xlabel('Category')
+        plt.ylabel('Ratio of "Good" Products')
+        plt.title(f'Ratio of "Good Products" by Category - {self.model.__class__.__name__}')
+
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45)
+        plt.show()
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -519,12 +541,25 @@ def perform_classify_experiment(choice, params):
     cexp.split_and_fit(df_pp)
     print(cexp.model)
     y_pred = cexp.model.predict(cexp.X_test)
+    y_prob = cexp.model.predict_proba(cexp.X_test)
 
     ceva = ClassificationEvaluator(cexp.model, cexp.y_test, y_pred)
     ceva.display_report()
     top_prod_proba_per_cat = ceva.get_top_produ_per_cat(df_cat_proba, cat_col, CATEGORIES, COUNT)
     best_cat_df = ceva.get_cat_ratios(df_cat_proba, cat_col, CATEGORIES)
+
+    print()
+    print(f'IDs of top {COUNT} products')
+    for k, v in top_prod_proba_per_cat.items():
+        print(f'in {k}')
+        print(combined_df.iloc[v.index]['id'].to_list())
+
+    top_produ_df = ceva.get_top_produ(df_pp, COUNT)
+    print()
+    print(f'Top {COUNT} products in all categories')
+    print(combined_df.iloc[top_produ_df.index][['id', 'category', 'name']].join(top_produ_df.to_frame()))
     ceva.plot_confusion_matrix()
+    ceva.visualize_best_category(best_cat_df)
     return top_prod_proba_per_cat, best_cat_df
 
 print()
@@ -598,3 +633,4 @@ params_lr = {
 } # the only needed hyper param is max_iter
 
 lr_top_prod_proba_per_cat, lr_best_cat_df = perform_classify_experiment(2, params_lr)
+
