@@ -509,7 +509,7 @@ def perform_kmeans_gaussian(choice, reduced_data):
     tuner, study_silh = kge.tune_hyperparameter(choice, n_trials=25) # 25-30 minutes
     print(f"Best parameters: {study_silh.best_trial.params}")
     print(f"Best value: {study_silh.best_trial.value}")
-    tuner.visualize_study(study)
+    tuner.visualize_study(study_silh)
 
     # Select and run the chosen model
     observed = kge.perform_clustering(choice, study_silh.best_trial.params)
